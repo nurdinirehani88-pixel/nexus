@@ -1,0 +1,473 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  OWNER
+  COLLABORATOR
+}
+
+enum ScheduleBlockType {
+  DEEP_WORK
+  MEETING
+  TRADING
+  PRAYER
+  FITNESS
+  PERSONAL
+  REFLECTION
+}
+
+enum PrayerName {
+  FAJR
+  DHUHR
+  ASR
+  MAGHRIB
+  ISHA
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+}
+
+enum TradeExecutionType {
+  MANUAL
+  ALGORITHMIC
+}
+
+enum TradeDirection {
+  LONG
+  SHORT
+}
+
+enum TradeStrategy {
+  SMC
+  ORB
+  BREAKOUT
+  TREND
+  SWING
+  SCALP
+  OTHER
+}
+
+enum TradeResult {
+  WIN
+  LOSS
+  BREAKEVEN
+}
+
+enum WorkoutType {
+  STRENGTH
+  CARDIO
+  MOBILITY
+  RECOVERY
+}
+
+enum MetricType {
+  BODY_WEIGHT
+  BODY_FAT
+  TRAINING_VOLUME
+  REP_MAX
+  SLEEP_HOURS
+  STEPS
+  CUSTOM
+}
+
+enum FinanceDomain {
+  BUSINESS
+  PERSONAL
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum GoalArea {
+  TRADING
+  SPIRITUAL
+  FITNESS
+  FINANCE
+  BUSINESS
+  PERSONAL
+}
+
+enum GoalStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum MilestoneStatus {
+  PLANNED
+  ACTIVE
+  BLOCKED
+  COMPLETED
+}
+
+enum Mood {
+  DRAINED
+  LOW
+  NEUTRAL
+  GOOD
+  GREAT
+  PEACEFUL
+  FIRED_UP
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  displayName         String
+  role                UserRole             @default(OWNER)
+  timeZone            String               @default("Africa/Dar_es_Salaam")
+  locationLabel       String?
+  latitude            Float?
+  longitude           Float?
+  currencyCode        String               @default("USD")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  profile             DashboardProfile?
+  scheduleItems       ScheduleItem[]
+  prayerSchedules     PrayerSchedule[]
+  prayerLogs          PrayerLog[]
+  habits              Habit[]
+  habitEntries        HabitEntry[]
+  tradeJournalEntries TradeJournalEntry[]
+  workoutRoutines     WorkoutRoutine[]
+  workoutSessions     WorkoutSession[]
+  bodyMetrics         BodyMetric[]
+  budgetPeriods       BudgetPeriod[]
+  financeCategories   FinanceCategory[]
+  financeTransactions FinanceTransaction[]
+  goals               Goal[]
+  milestones          Milestone[]
+  milestoneTasks      MilestoneTask[]
+  journalEntries      JournalEntry[]
+}
+
+model DashboardProfile {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  headline                String?
+  bio                     String?
+  dailyBudgetTargetCents  Int      @default(0)
+  weeklyWorkoutTarget     Int      @default(4)
+  prayerCalculationMethod String   @default("Muslim World League")
+  prayerAsrFactor         String   @default("Standard")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ScheduleItem {
+  id        String            @id @default(cuid())
+  userId    String
+  goalId    String?
+  title     String
+  notes     String?
+  blockType ScheduleBlockType
+  startsAt  DateTime
+  endsAt    DateTime
+  isAllDay  Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal      Goal?             @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startsAt])
+  @@index([goalId])
+}
+
+model PrayerSchedule {
+  id         String   @id @default(cuid())
+  userId     String
+  prayerDate DateTime
+  source     String   @default("Prayer service sync")
+  fajrAt     DateTime
+  dhuhrAt    DateTime
+  asrAt      DateTime
+  maghribAt  DateTime
+  ishaAt     DateTime
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, prayerDate])
+  @@index([userId, prayerDate])
+}
+
+model PrayerLog {
+  id          String     @id @default(cuid())
+  userId      String
+  prayerDate  DateTime
+  prayer      PrayerName
+  completed   Boolean    @default(false)
+  completedAt DateTime?
+  note        String?
+  createdAt   DateTime   @default(now())
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, prayerDate, prayer])
+  @@index([userId, prayerDate])
+}
+
+model Habit {
+  id          String         @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  colorToken  String?
+  frequency   HabitFrequency @default(DAILY)
+  targetCount Int            @default(1)
+  unit        String         @default("check")
+  isArchived  Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries     HabitEntry[]
+
+  @@index([userId, isArchived])
+}
+
+model HabitEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  habitId        String
+  entryDate      DateTime
+  completedCount Int      @default(1)
+  note           String?
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit          Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, entryDate])
+  @@index([userId, entryDate])
+}
+
+model TradeJournalEntry {
+  id                 String             @id @default(cuid())
+  userId             String
+  tradedAt           DateTime
+  asset              String
+  market             String?
+  executionType      TradeExecutionType @default(MANUAL)
+  direction          TradeDirection
+  strategy           TradeStrategy
+  setupNotes         String?
+  entryPrice         Float
+  exitPrice          Float?
+  stopLoss           Float?
+  takeProfit         Float?
+  riskRewardTarget   Float?
+  riskRewardRealized Float?
+  result             TradeResult
+  pnlAmountCents     Int?
+  lessonsLearned     String?
+  screenshotUrl      String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, tradedAt])
+  @@index([userId, strategy])
+}
+
+model WorkoutRoutine {
+  id          String           @id @default(cuid())
+  userId      String
+  title       String
+  focusArea   String
+  weekday     Int
+  startTime   String?
+  durationMin Int?
+  type        WorkoutType
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions    WorkoutSession[]
+
+  @@index([userId, weekday])
+}
+
+model WorkoutSession {
+  id            String          @id @default(cuid())
+  userId        String
+  routineId     String?
+  performedAt   DateTime
+  type          WorkoutType
+  durationMin   Int?
+  effortScore   Int?
+  totalVolumeKg Float?
+  note          String?
+  createdAt     DateTime        @default(now())
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routine       WorkoutRoutine? @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  exerciseSets  ExerciseSet[]
+
+  @@index([userId, performedAt])
+  @@index([routineId])
+}
+
+model ExerciseSet {
+  id               String         @id @default(cuid())
+  workoutSessionId String
+  exerciseName     String
+  setNumber        Int
+  reps             Int?
+  weightKg         Float?
+  distanceKm       Float?
+  durationMin      Int?
+  volumeKg         Float?
+  workoutSession   WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+
+  @@index([workoutSessionId, exerciseName])
+}
+
+model BodyMetric {
+  id         String     @id @default(cuid())
+  userId     String
+  metricType MetricType
+  label      String
+  value      Float
+  unit       String
+  recordedAt DateTime
+  createdAt  DateTime   @default(now())
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, metricType, recordedAt])
+}
+
+model BudgetPeriod {
+  id                  String               @id @default(cuid())
+  userId              String
+  label               String
+  startsAt            DateTime
+  endsAt              DateTime
+  dailyAllowanceCents Int                  @default(0)
+  businessBudgetCents Int                  @default(0)
+  personalBudgetCents Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions        FinanceTransaction[]
+
+  @@index([userId, startsAt, endsAt])
+}
+
+model FinanceCategory {
+  id              String               @id @default(cuid())
+  userId          String
+  name            String
+  domain          FinanceDomain
+  icon            String?
+  monthlyCapCents Int?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    FinanceTransaction[]
+
+  @@unique([userId, name, domain])
+}
+
+model FinanceTransaction {
+  id              String           @id @default(cuid())
+  userId          String
+  budgetPeriodId  String?
+  categoryId      String?
+  transactionType TransactionType
+  domain          FinanceDomain
+  amountCents     Int
+  note            String?
+  vendor          String?
+  occurredAt      DateTime
+  isRecurring     Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetPeriod    BudgetPeriod?    @relation(fields: [budgetPeriodId], references: [id], onDelete: SetNull)
+  category        FinanceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@index([categoryId, occurredAt])
+}
+
+model Goal {
+  id            String         @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  area          GoalArea
+  status        GoalStatus     @default(ACTIVE)
+  targetDate    DateTime?
+  targetValue   Float?
+  currentValue  Float          @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones    Milestone[]
+  scheduleItems ScheduleItem[]
+
+  @@index([userId, status, targetDate])
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  userId      String
+  goalId      String
+  title       String
+  description String?
+  status      MilestoneStatus @default(PLANNED)
+  dueDate     DateTime?
+  order       Int             @default(0)
+  weight      Int             @default(1)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal        Goal            @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  tasks       MilestoneTask[]
+
+  @@index([goalId, order])
+  @@index([userId, dueDate])
+}
+
+model MilestoneTask {
+  id          String    @id @default(cuid())
+  userId      String
+  milestoneId String
+  title       String
+  description String?
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@index([milestoneId, order])
+  @@index([userId, isCompleted])
+}
+
+model JournalEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  entryDate   DateTime
+  title       String?
+  mood        Mood
+  energyScore Int?
+  gratitude   String?
+  contentMd   String
+  tags        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, entryDate])
+}
